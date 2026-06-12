@@ -1,0 +1,374 @@
+---
+description: API and data layer patterns - Chopper services, DTOs, enums, repositories, and serialization.
+alwaysApply: false
+---
+
+# API & Data Layer Guide
+
+## Chopper Service Definition
+
+Located in `core/api/services/`:
+
+```dart
+@ChopperApi(baseUrl: '/auth')
+abstract class AuthService extends ChopperService {
+  static AuthService create([ChopperClient? client]) =>
+      _$AuthService(client);
+
+  @POST(path: '/login')
+  Future<Response<BuiltMap<String, dynamic>>> login(
+    @Body() Map<String, dynamic> body,
+  );
+
+  @GET(path: '/user')
+  Future<Response<BuiltMap<String, dynamic>>> getUser();
+}
+```
+
+---
+
+## DTO Patterns
+
+### Basic DTO with Built Value
+
+```dart
+// features/auth/data/models/user_dto.dart
+abstract class UserDto implements Built<UserDto, UserDtoBuilder> {
+  static Serializer<UserDto> get serializer => _$userDtoSerializer;
+
+  String get id;
+  String get name;
+  String? get email;
+
+  UserDto._();
+  factory UserDto([void Function(UserDtoBuilder) updates]) = _$UserDto;
+
+  // Convert to domain model
+  User toDomain() => User(id: id, name: name, email: email);
+}
+```
+
+### Response DTO with Nested Data
+
+```dart
+abstract class UserResponseDto
+    implements Built<UserResponseDto, UserResponseDtoBuilder> {
+  static Serializer<UserResponseDto> get serializer =>
+      _$userResponseDtoSerializer;
+
+  UserDto get data;
+  String? get message;
+
+  UserResponseDto._();
+  factory UserResponseDto([void Function(UserResponseDtoBuilder) updates]) =
+      _$UserResponseDto;
+}
+```
+
+---
+
+## Enum Patterns (EnumClass)
+
+### String-Based Enum
+
+Use `wireName` for API string values:
+
+```dart
+// features/notifications/data/models/notification_enums.dart
+class NotificationReadFilter extends EnumClass {
+  static Serializer<NotificationReadFilter> get serializer =>
+      _$notificationReadFilterSerializer;
+
+  @BuiltValueEnumConst(wireName: 'all')
+  static const NotificationReadFilter all = _$all;
+
+  @BuiltValueEnumConst(wireName: 'read')
+  static const NotificationReadFilter read = _$read;
+
+  @BuiltValueEnumConst(wireName: 'unread')
+  static const NotificationReadFilter unread = _$unread;
+
+  const NotificationReadFilter._(super.name);
+
+  static BuiltSet<NotificationReadFilter> get values =>
+      _$notificationReadFilterValues;
+  static NotificationReadFilter valueOf(String name) =>
+      _$notificationReadFilterValueOf(name);
+
+  // Serialize to API string value
+  String serialize() {
+    return serializers.serializeWith(
+      NotificationReadFilter.serializer,
+      this,
+    ) as String;
+  }
+
+  // Deserialize from API string value
+  static NotificationReadFilter? deserialize(String string) {
+    return serializers.deserializeWith(
+      NotificationReadFilter.serializer,
+      string,
+    );
+  }
+
+  @override
+  String toString() => serialize();
+}
+```
+
+### Number-Based Enum
+
+Use `wireNumber` for API integer values:
+
+```dart
+class BooleanFlag extends EnumClass {
+  static Serializer<BooleanFlag> get serializer => _$booleanFlagSerializer;
+
+  @BuiltValueEnumConst(wireNumber: 0)
+  static const BooleanFlag disabled = _$disabled;
+
+  @BuiltValueEnumConst(wireNumber: 1)
+  static const BooleanFlag enabled = _$enabled;
+
+  const BooleanFlag._(super.name);
+
+  static BuiltSet<BooleanFlag> get values => _$booleanFlagValues;
+  static BooleanFlag valueOf(String name) => _$booleanFlagValueOf(name);
+
+  int serialize() {
+    return serializers.serializeWith(BooleanFlag.serializer, this) as int;
+  }
+
+  static BooleanFlag? deserialize(int value) {
+    return serializers.deserializeWith(BooleanFlag.serializer, value);
+  }
+
+  @override
+  String toString() => serialize().toString();
+}
+```
+
+### When to Use Enums
+
+✅ **Use enums for:**
+- API query parameters with fixed values (`read: 'all' | 'read' | 'unread'`)
+- API integer flags (`markAllRead: 0 | 1`)
+- DTO fields with known options (`status: 'pending' | 'approved' | 'rejected'`)
+
+❌ **Don't use enums for:**
+- Free-form strings (names, descriptions)
+- Numeric ranges (age, price)
+- Dynamic values
+
+---
+
+## Serializers Registration
+
+All enums and DTOs must be registered in `core/api/serializers.dart`:
+
+```dart
+@SerializersFor([
+  // DTOs
+  UserDto,
+  LoginRequestDto,
+  LoginResponseDto,
+  DashboardResponseDto,
+  NotificationDto,
+  PaginationMetaDto,
+  // Enums
+  NotificationReadFilter,
+  BooleanFlag,
+  DashboardStatsType,
+  ApplicationType,
+  ApplicationStatus,
+])
+final Serializers serializers =
+    (_$serializers.toBuilder()
+          ..addPlugin(IntToBoolPlugin())      // Converts int 0/1 to bool
+          ..addPlugin(StringToNumberPlugin()) // Converts string numbers
+          ..addPlugin(StandardJsonPlugin()))
+        .build();
+```
+
+### Custom Serializer Plugins
+
+Located in `core/api/serializers/`:
+
+| Plugin | Purpose |
+|--------|---------|
+| `IntToBoolPlugin` | Converts API `0`/`1` integers to `bool` |
+| `StringToNumberPlugin` | Converts string numbers to `int`/`double` |
+| `StandardJsonPlugin` | Standard JSON serialization |
+
+---
+
+## Repository Pattern
+
+```dart
+// features/auth/data/auth_repository.dart
+class AuthRepository {
+  final AuthService _service;
+
+  AuthRepository(this._service);
+
+  Future<Result<User>> login(String email, String password) async {
+    try {
+      final response = await _service.login({
+        'email': email,
+        'password': password,
+      });
+
+      if (response.isSuccessful && response.body != null) {
+        final dto = standardSerializers.deserializeWith(
+          UserResponseDto.serializer,
+          response.body,
+        );
+        return Success(dto!.data.toDomain());
+      }
+
+      return Failure(response.error?.toString() ?? 'Login failed');
+    } on SocketException {
+      return Failure('No internet connection');
+    } catch (e) {
+      return Failure(e.toString());
+    }
+  }
+
+  Future<Result<PaginatedList<Notification>>> getNotifications({
+    required int page,
+    String? read,
+  }) async {
+    try {
+      final response = await _service.getNotifications(
+        page: page,
+        read: read,
+      );
+
+      if (response.isSuccessful && response.body != null) {
+        final dto = standardSerializers.deserializeWith(
+          NotificationListResponseDto.serializer,
+          response.body,
+        );
+        return Success(PaginatedList(
+          items: dto!.data.map((d) => d.toDomain()).toList(),
+          currentPage: dto.meta.currentPage,
+          lastPage: dto.meta.lastPage,
+          perPage: dto.meta.perPage,
+          total: dto.meta.total,
+        ));
+      }
+
+      return Failure(response.error?.toString() ?? 'Failed to load');
+    } catch (e) {
+      return Failure(e.toString());
+    }
+  }
+}
+```
+
+---
+
+## API Client Configuration
+
+Located in `core/api/api_client.dart`:
+
+```dart
+class ApiClient {
+  static ChopperClient create({String? baseUrl, String? token}) {
+    return ChopperClient(
+      baseUrl: Uri.parse(baseUrl ?? ApiConfig.baseUrl),
+      services: [
+        AuthService.create(),
+        NotificationService.create(),
+        // Add all services
+      ],
+      converter: BuiltValueConverter(),
+      interceptors: [
+        HeaderInterceptor(),
+        if (token != null) AuthInterceptor(token),
+        HttpLoggingInterceptor(),
+      ],
+    );
+  }
+}
+```
+
+---
+
+## Interceptors
+
+### Auth Interceptor
+
+```dart
+class AuthInterceptor implements RequestInterceptor {
+  final String _token;
+
+  AuthInterceptor(this._token);
+
+  @override
+  FutureOr<Request> onRequest(Request request) {
+    return request.copyWith(
+      headers: {
+        ...request.headers,
+        'Authorization': 'Bearer $_token',
+      },
+    );
+  }
+}
+```
+
+### Header Interceptor
+
+```dart
+class HeaderInterceptor implements RequestInterceptor {
+  @override
+  FutureOr<Request> onRequest(Request request) {
+    return request.copyWith(
+      headers: {
+        ...request.headers,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Accept-Language': 'ar', // or from locale
+      },
+    );
+  }
+}
+```
+
+---
+
+## Provider Setup
+
+```dart
+// Service provider
+final authServiceProvider = Provider<AuthService>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return client.getService<AuthService>();
+});
+
+// Repository provider
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  final service = ref.watch(authServiceProvider);
+  return AuthRepository(service);
+});
+
+// Use case provider
+final loginUseCaseProvider = Provider<LoginUserUseCase>((ref) {
+  final repository = ref.watch(authRepositoryProvider);
+  return LoginUserUseCase(repository);
+});
+```
+
+---
+
+## File Locations
+
+| File | Location |
+|------|----------|
+| Chopper Services | `lib/core/api/services/` |
+| Interceptors | `lib/core/api/interceptors/` |
+| API Client | `lib/core/api/api_client.dart` |
+| Serializers | `lib/core/api/serializers.dart` |
+| Feature DTOs | `lib/features/<feature>/data/models/` |
+| Feature Enums | `lib/features/<feature>/data/models/` |
+| Repositories | `lib/features/<feature>/data/` |

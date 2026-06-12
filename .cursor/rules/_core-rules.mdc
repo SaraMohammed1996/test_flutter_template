@@ -1,0 +1,214 @@
+---
+description: CRITICAL rules that must ALWAYS be followed in this Flutter project. These are non-negotiable constraints.
+alwaysApply: true
+---
+
+# 🚨 CRITICAL PROJECT RULES
+
+These rules are **MANDATORY** and must be followed in **EVERY** code change.
+
+---
+
+## 1. NO HARDCODED COLORS
+
+**NEVER** use hardcoded colors anywhere in the codebase.
+
+```dart
+// ❌ FORBIDDEN - Will be rejected
+Color(0xFF055DC9)
+Colors.white
+Colors.black
+Color.fromRGBO(...)
+
+// ✅ REQUIRED - Always use theme
+Theme.of(context).colorScheme.primary
+Theme.of(context).colorScheme.surface
+AppTheme.primary
+AppTheme.textPrimary
+```
+
+**Where to find colors:** `lib/core/theme/app_theme.dart`
+
+---
+
+## 2. NO HARDCODED TEXT STYLES
+
+**NEVER** create `TextStyle` from scratch.
+
+```dart
+// ❌ FORBIDDEN
+TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black)
+
+// ✅ REQUIRED - Use theme styles
+Theme.of(context).textTheme.titleLarge
+AppTheme.titleLarge
+Theme.of(context).textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.bold)
+```
+
+---
+
+## 3. NO HARDCODED STRINGS (USER-FACING)
+
+**NEVER** hardcode user-facing text.
+
+```dart
+// ❌ FORBIDDEN
+Text('Welcome')
+Text('Error occurred')
+
+// ✅ REQUIRED - Use AppLocalizations
+Text(AppLocalizations.of(context)!.welcome)
+Text(AppLocalizations.of(context)!.errorOccurred)
+```
+
+---
+
+## 4. USE RTL-AWARE PROPERTIES
+
+**NEVER** use `left`/`right` for positioning. Use `start`/`end`.
+
+```dart
+// ❌ FORBIDDEN
+EdgeInsets.only(left: 16, right: 8)
+Alignment.centerLeft
+BorderRadius.only(topLeft: Radius.circular(8))
+
+// ✅ REQUIRED - RTL-aware
+EdgeInsetsDirectional.only(start: 16, end: 8)
+AlignmentDirectional.centerStart
+BorderRadiusDirectional.only(topStart: Radius.circular(8))
+```
+
+---
+
+## 5. USE THEME SPACING
+
+**NEVER** use magic numbers for spacing.
+
+```dart
+// ❌ FORBIDDEN
+SizedBox(height: 16)
+EdgeInsets.all(8)
+
+// ✅ REQUIRED
+SizedBox(height: AppTheme.spacingMd)
+EdgeInsets.all(AppTheme.spacingSm)
+```
+
+---
+
+## 6. CLEAN ARCHITECTURE LAYERS
+
+**ALWAYS** follow the three-layer structure:
+
+```
+features/<feature>/
+├── data/           # DTOs, Repositories (API calls)
+├── domain/         # Use cases, Domain models (business logic)
+└── presentation/   # Screens, Providers, Widgets (UI)
+```
+
+**Dependency Rule:** `Presentation → Domain → Data` (inward only)
+
+---
+
+## 7. FILE NAMING
+
+**ALWAYS** use `snake_case` for files:
+
+```
+✅ login_screen.dart
+✅ auth_provider.dart
+✅ user_dto.dart
+
+❌ LoginScreen.dart
+❌ authProvider.dart
+```
+
+---
+
+## 8. STATE MANAGEMENT
+
+**ALWAYS** use:
+- `BaseNotifier<T>` for non-paginated features
+- `PaginatedNotifier<T>` for paginated features
+- Freezed for state classes
+- Result pattern for error handling
+
+---
+
+## 9. AVOID DEPRECATED APIS
+
+**NEVER** use deprecated Flutter/Dart APIs:
+
+```dart
+// ❌ FORBIDDEN - Deprecated
+color.withOpacity(0.5)
+SwitchListTile(activeColor: AppTheme.primary)
+PopScope(onPopInvoked: (didPop) {})
+
+// ✅ REQUIRED - Use modern APIs
+color.withValues(alpha: 0.5)
+SwitchListTile(
+  activeTrackColor: AppTheme.primary.withValues(alpha: 0.5),
+  thumbColor: WidgetStateProperty.resolveWith((states) {
+    if (states.contains(WidgetState.selected)) return AppTheme.primary;
+    return null;
+  }),
+)
+PopScope(onPopInvokedWithResult: (didPop, result) {})
+```
+
+---
+
+## 10. CODE STYLE
+
+**ALWAYS** follow Dart style:
+
+```dart
+// ❌ FORBIDDEN
+final __ = unusedValue;  // Double underscore
+'Hello ' + name + '!'    // String concatenation
+if (value != null) value.method()  // Explicit null check
+
+// ✅ REQUIRED
+final _ = unusedValue;   // Single underscore for unused
+'Hello $name!'           // String interpolation
+value?.method()          // Null-aware operator
+
+// ❌ FORBIDDEN - Missing type annotations
+final items = [];
+var callback = () {};
+
+// ✅ REQUIRED - Explicit types
+final List<String> items = [];
+VoidCallback callback = () {};
+```
+
+---
+
+## 11. NO UNAUTHORIZED CHANGES
+
+**DO NOT** make changes not explicitly requested:
+- No UI/UX changes without approval
+- No version changes without approval
+- No README updates without request
+- No modifying generated files (`.freezed.dart`, `.g.dart`)
+
+---
+
+## Quick Reference
+
+| Rule | Forbidden | Required |
+|------|-----------|----------|
+| Colors | `Color(0x...)`, `Colors.xxx` | `AppTheme.xxx`, `Theme.of(context).colorScheme.xxx` |
+| Text Styles | `TextStyle(...)` from scratch | `AppTheme.xxx`, `Theme.of(context).textTheme.xxx` |
+| Strings | `'Hardcoded text'` | `AppLocalizations.of(context)!.xxx` |
+| Positioning | `left`, `right` | `start`, `end` |
+| Spacing | `16.0`, `8.0` | `AppTheme.spacingMd`, `AppTheme.spacingSm` |
+| Opacity | `.withOpacity(0.5)` | `.withValues(alpha: 0.5)` |
+| Switch colors | `activeColor:` | `thumbColor: WidgetStateProperty.resolveWith(...)` |
+| Pop scope | `onPopInvoked:` | `onPopInvokedWithResult:` |
+| Unused vars | `__` (double) | `_` (single) |
+| Strings concat | `'a' + b + 'c'` | `'a${b}c'` (interpolation) |
+| Null checks | `if (x != null) x.y` | `x?.y` (null-aware) |

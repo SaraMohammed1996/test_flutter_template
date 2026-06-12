@@ -1,0 +1,405 @@
+---
+description: UI theming guide - colors, text styles, spacing, and widget best practices.
+alwaysApply: false
+---
+
+# UI & Theming Guide
+
+## Theme File Location
+
+`lib/core/theme/app_theme.dart`
+
+---
+
+## Using Colors
+
+### From AppTheme (Static)
+
+```dart
+Container(
+  color: AppTheme.primary,
+  child: Text('Hello', style: TextStyle(color: AppTheme.textPrimary)),
+)
+```
+
+### From Theme.of(context) (Dynamic - Preferred)
+
+```dart
+Container(
+  color: Theme.of(context).colorScheme.primary,
+  child: Text(
+    'Hello',
+    style: TextStyle(color: Theme.of(context).colorScheme.onPrimary),
+  ),
+)
+```
+
+### Available Colors
+
+**Core Colors:**
+| AppTheme | Usage |
+|----------|-------|
+| `AppTheme.primary` | Primary brand color (#055DC9) |
+| `AppTheme.primary200` | Light primary (#9BC7FD) |
+| `AppTheme.secondary` | Secondary color |
+| `AppTheme.surface` | Card/container backgrounds (white) |
+| `AppTheme.background` | Screen backgrounds (#F5F5F5) |
+| `AppTheme.error` | Error states |
+| `AppTheme.whiteColor` | Pure white |
+
+**Text Colors:**
+| AppTheme | Usage |
+|----------|-------|
+| `AppTheme.textPrimary` | Main text (black) |
+| `AppTheme.textSecondary` | Secondary text (#757575) |
+| `AppTheme.borderColor` | Borders, dividers |
+| `AppTheme.hintColor` | Hint text, placeholders |
+
+**Dashboard Colors:**
+| AppTheme | Usage |
+|----------|-------|
+| `AppTheme.dashboardTextPrimary` | Dashboard primary text (#283547) |
+| `AppTheme.dashboardTextSecondary` | Dashboard secondary text (#192339) |
+| `AppTheme.dashboardBorder` | Dashboard borders |
+| `AppTheme.dashboardShadow` | Dashboard shadows |
+
+**Status Colors:**
+| AppTheme | Usage |
+|----------|-------|
+| `AppTheme.statusSuccess` | Success state (#1cac51) |
+| `AppTheme.statusSuccessBg` | Success background |
+| `AppTheme.statusWarning` | Warning state (#f57834) |
+| `AppTheme.statusWarningBg` | Warning background |
+| `AppTheme.statusError` | Error state (#df2929) |
+| `AppTheme.statusErrorBg` | Error background |
+| `AppTheme.statusInfo` | Info state (#6ca2f8) |
+| `AppTheme.statusInfoBg` | Info background |
+| `AppTheme.statusPending` | Pending state (#7973eb) |
+| `AppTheme.statusPendingBg` | Pending background |
+
+**Gradient Colors:**
+| AppTheme | Usage |
+|----------|-------|
+| `AppTheme.gradientBlueStart/End` | Blue gradients |
+| `AppTheme.gradientGreenStart/End` | Green gradients |
+
+**Additional UI Colors:**
+| AppTheme | Usage |
+|----------|-------|
+| `AppTheme.blue500/600/700` | Blue shades |
+| `AppTheme.gray200/500/700` | Gray shades |
+| `AppTheme.iconDefault` | Default icon color |
+| `AppTheme.shadowColor` | Shadow color |
+
+---
+
+## Using Text Styles
+
+### From AppTheme (Static)
+
+```dart
+Text('Title', style: AppTheme.titleLarge)
+Text('Body', style: AppTheme.bodyLarge)
+```
+
+### From Theme.of(context) (Dynamic - Preferred)
+
+```dart
+Text('Title', style: Theme.of(context).textTheme.titleLarge)
+Text('Body', style: Theme.of(context).textTheme.bodyLarge)
+```
+
+### Modifying Styles
+
+Always start from theme, then modify:
+
+```dart
+// ✅ Correct
+Text(
+  'Custom',
+  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+    fontWeight: FontWeight.bold,
+    color: Theme.of(context).colorScheme.primary,
+  ),
+)
+
+// ❌ Wrong - Creating from scratch
+Text(
+  'Custom',
+  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+)
+```
+
+### Available Text Styles
+
+**Theme Text Styles (via Theme.of(context).textTheme):**
+| Style | Usage |
+|-------|-------|
+| `displayLarge` | Hero text (64px Inter) |
+| `displayMedium` | Large headings (44px) |
+| `headlineLarge` | Section headers (36px) |
+| `titleLarge` | Card titles, app bar (21px bold) |
+| `labelLarge` | Labels (18px) |
+| `bodyLarge` | Body text (22px) |
+
+**AppTheme Custom Styles:**
+| Style | Usage |
+|-------|-------|
+| `AppTheme.dashboardTitle` | Dashboard titles (24px bold) |
+| `AppTheme.dashboardSubtitle` | Dashboard subtitles (16px) |
+| `AppTheme.dashboardSectionTitle` | Section titles (18px bold) |
+| `AppTheme.dashboardLabel` | Labels (12px) |
+| `AppTheme.dashboardValue` | Large values (24px bold) |
+| `AppTheme.dashboardSmallValue` | Small values (22px bold) |
+| `AppTheme.dashboardCardTitle` | Card titles (16px bold) |
+| `AppTheme.dashboardCardLabel` | Card labels (14px) |
+| `AppTheme.buttonText` | Button text (18px bold white) |
+| `AppTheme.badgeText` | Badge text (10px bold white) |
+| `AppTheme.userNameText` | User names (18px Cairo) |
+| `AppTheme.avatarInitial` | Avatar initials (18px bold primary) |
+| `AppTheme.languageToggleText` | Language toggle (16px bold) |
+
+**Fonts:**
+| Constant | Font |
+|----------|------|
+| `AppTheme.fontInter` | 'Inter' |
+| `AppTheme.fontCairo` | 'Cairo' |
+
+---
+
+## Using Spacing
+
+### Theme Spacing Constants
+
+```dart
+// ✅ Correct
+SizedBox(height: AppTheme.spacingMd)
+Padding(padding: EdgeInsets.all(AppTheme.spacingSm))
+SizedBox(width: AppTheme.spacingLg)
+
+// ❌ Wrong - Hardcoded values
+SizedBox(height: 16)
+Padding(padding: EdgeInsets.all(8))
+```
+
+### Available Spacing
+
+| Constant | Value | Usage |
+|----------|-------|-------|
+| `AppTheme.spacingXs` | 4.0 | Tiny gaps |
+| `AppTheme.spacingSm` | 8.0 | Small padding |
+| `AppTheme.spacingMd` | 16.0 | Standard padding |
+| `AppTheme.spacingLg` | 24.0 | Large sections |
+| `AppTheme.spacingXl` | 32.0 | Major sections |
+
+---
+
+## Widget Best Practices
+
+### Widget Size
+
+- Keep widgets **under 200 lines**
+- **Single responsibility** - one clear purpose
+- Extract reusable parts to separate widgets
+
+### Widget Types
+
+| Type | When to Use |
+|------|-------------|
+| `StatelessWidget` | No internal state needed |
+| `StatefulWidget` | Local state only (animations, controllers) |
+| `ConsumerWidget` | Accessing Riverpod providers (preferred) |
+| `ConsumerStatefulWidget` | Local state + Riverpod |
+
+### Performance
+
+```dart
+// ✅ Use const constructors
+const SizedBox(height: 16)
+const Text('Static text')
+const MyWidget()
+
+// ✅ Use ListView.builder for long lists
+ListView.builder(
+  itemCount: items.length,
+  itemBuilder: (context, index) => ItemWidget(items[index]),
+)
+
+// ❌ Avoid ListView with children for long lists
+ListView(children: items.map((i) => ItemWidget(i)).toList())
+```
+
+---
+
+## Common UI Patterns
+
+### Container with Theme
+
+```dart
+Container(
+  padding: EdgeInsets.all(AppTheme.spacingMd),
+  decoration: BoxDecoration(
+    color: Theme.of(context).colorScheme.surface,
+    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+    border: Border.all(color: AppTheme.borderColor),
+  ),
+  child: Text(
+    'Content',
+    style: Theme.of(context).textTheme.bodyLarge,
+  ),
+)
+```
+
+### Card with Theme
+
+```dart
+Card(
+  color: Theme.of(context).colorScheme.surface,
+  elevation: 2,
+  shape: RoundedRectangleBorder(
+    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+  ),
+  child: Padding(
+    padding: EdgeInsets.all(AppTheme.spacingMd),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Title', style: Theme.of(context).textTheme.titleLarge),
+        SizedBox(height: AppTheme.spacingSm),
+        Text('Body', style: Theme.of(context).textTheme.bodyLarge),
+      ],
+    ),
+  ),
+)
+```
+
+### Button with Theme
+
+```dart
+ElevatedButton(
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Theme.of(context).colorScheme.primary,
+    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+    padding: EdgeInsets.symmetric(
+      horizontal: AppTheme.spacingLg,
+      vertical: AppTheme.spacingMd,
+    ),
+  ),
+  onPressed: () {},
+  child: Text('Button'),
+)
+```
+
+### ListTile with Theme
+
+```dart
+ListTile(
+  title: Text(
+    'Title',
+    style: Theme.of(context).textTheme.titleMedium,
+  ),
+  subtitle: Text(
+    'Subtitle',
+    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+    ),
+  ),
+  leading: Icon(
+    Icons.person,
+    color: Theme.of(context).colorScheme.primary,
+  ),
+)
+```
+
+### SwitchListTile with Theme
+
+```dart
+SwitchListTile(
+  title: Text('Enable', style: AppTheme.bodyLarge),
+  value: isEnabled,
+  onChanged: (value) => setEnabled(value),
+  activeTrackColor: AppTheme.primary.withValues(alpha: 0.5),
+  thumbColor: WidgetStateProperty.resolveWith((states) {
+    if (states.contains(WidgetState.selected)) {
+      return AppTheme.primary;
+    }
+    return null;
+  }),
+)
+```
+
+### Color with Opacity (Modern API)
+
+```dart
+// ❌ DEPRECATED - Will cause lint warning
+color.withOpacity(0.5)
+
+// ✅ CORRECT - Use withValues
+color.withValues(alpha: 0.5)
+
+// Example usage
+Container(
+  color: AppTheme.primary.withValues(alpha: 0.1),  // 10% opacity
+)
+BoxShadow(
+  color: AppTheme.shadowColor.withValues(alpha: 0.2),  // 20% opacity
+)
+```
+
+---
+
+## Adding New Theme Values
+
+If you need a new color or style:
+
+1. **Add to `AppTheme` class** in `lib/core/theme/app_theme.dart`
+2. **Use the new constant** throughout the app
+
+```dart
+// In app_theme.dart
+static const Color success = Color(0xFF4CAF50);
+static const Color warning = Color(0xFFFF9800);
+
+static const double radiusSm = 4.0;
+static const double radiusMd = 8.0;
+static const double radiusLg = 16.0;
+```
+
+---
+
+---
+
+## Available Core Widgets
+
+Located in `lib/core/widgets/`:
+
+| Widget | Purpose |
+|--------|---------|
+| `RefreshableContent<T>` | Pull-to-refresh for non-paginated data |
+| `PaginatedListView<T>` | Pull-to-refresh + infinite scroll |
+| `ErrorStateWidget` | Error display with retry |
+| `LoadingStateWidget` | Loading indicator |
+| `CardContainer` | Styled card container |
+| `DashboardCard` | Dashboard-specific card |
+| `IconContainer` | Icon with background container |
+| `InputField` | Styled text input |
+| `PrimaryButton` | Primary action button |
+| `StatusBadge` | Status indicator badge |
+| `StatItem` | Statistics display item |
+| `LanguageToggle` | AR/EN language switcher |
+
+---
+
+## Checklist
+
+- [ ] All colors from `AppTheme` or `Theme.of(context).colorScheme`
+- [ ] All text styles from `AppTheme` or `Theme.of(context).textTheme`
+- [ ] All spacing from `AppTheme.spacing*`
+- [ ] No hardcoded `Color(0x...)` or `Colors.xxx`
+- [ ] No `TextStyle()` created from scratch
+- [ ] `const` constructors where possible
+- [ ] `ListView.builder` for long lists
+- [ ] Use existing core widgets when applicable
+- [ ] **No `.withOpacity()` - use `.withValues(alpha: X)` instead**
+- [ ] **No `activeColor:` on switches - use `thumbColor: WidgetStateProperty`**
+- [ ] **No `onPopInvoked:` - use `onPopInvokedWithResult:`**

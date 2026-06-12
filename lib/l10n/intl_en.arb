@@ -1,0 +1,278 @@
+{
+  "@@locale": "en",
+  "appTitle": "Test Flutter Template",
+  "@appTitle": {
+    "description": "Application title"
+  },
+  "welcome": "Welcome",
+  "@welcome": {
+    "description": "Welcome text"
+  },
+  "home": "Home",
+  "@home": {
+    "description": "Home screen title"
+  },
+  "loading": "Loading...",
+  "@loading": {
+    "description": "Loading text"
+  },
+  "error": "Error",
+  "@error": {
+    "description": "Error text"
+  },
+  "retry": "Retry",
+  "@retry": {
+    "description": "Retry button text"
+  },
+  "noData": "No data",
+  "@noData": {
+    "description": "No data available message"
+  },
+  "unknownError": "An unknown error occurred",
+  "@unknownError": {
+    "description": "Unknown error message"
+  },
+  "validationFailed": "Validation failed",
+  "@validationFailed": {
+    "description": "Validation failed error message"
+  },
+  "subdomainNotSetLoginFirst": "Subdomain not set. Please login first.",
+  "@subdomainNotSetLoginFirst": {
+    "description": "Subdomain not set error message"
+  },
+  "notAuthenticated": "Not authenticated",
+  "@notAuthenticated": {
+    "description": "Not authenticated error message"
+  },
+  "invalidDomainError": "Invalid company code. Please check your company code and try again.",
+  "@invalidDomainError": {
+    "description": "Invalid domain error message"
+  },
+  "failedToInitialize": "Something went wrong. Please try again.",
+  "@failedToInitialize": {
+    "description": "Failed to initialize error message"
+  },
+  "failedToConfigureApi": "Failed to configure. Please try again.",
+  "@failedToConfigureApi": {
+    "description": "Failed to configure API error message"
+  },
+  "noInternetConnection": "No Internet Connection",
+  "@noInternetConnection": {
+    "description": "No internet connection error title"
+  },
+  "noInternetConnectionMessage": "Please check your internet connection and try again",
+  "@noInternetConnectionMessage": {
+    "description": "No internet connection error message"
+  },
+  "serverError": "Server Error",
+  "@serverError": {
+    "description": "Server error title"
+  },
+  "serverErrorMessage": "A server error occurred. Please try again later",
+  "@serverErrorMessage": {
+    "description": "Server error message"
+  },
+  "settings": "Settings",
+  "@settings": {
+    "description": "Settings title"
+  },
+  "darkMode": "Dark Mode",
+  "@darkMode": {
+    "description": "Dark mode label"
+  },
+  "language": "Language",
+  "@language": {
+    "description": "Language label"
+  },
+  "english": "English",
+  "@english": {
+    "description": "English language label"
+  },
+  "arabic": "العربية",
+  "@arabic": {
+    "description": "Arabic language label"
+  },
+  "login": "Login",
+  "@login": {
+    "description": "Login button and screen title"
+  },
+  "register": "Register",
+  "@register": {
+    "description": "Register button and screen title"
+  },
+  "email": "Email",
+  "@email": {
+    "description": "Email field label"
+  },
+  "password": "Password",
+  "@password": {
+    "description": "Password field label"
+  },
+  "name": "Name",
+  "@name": {
+    "description": "Name field label"
+  },
+  "passwordConfirmation": "Confirm Password",
+  "@passwordConfirmation": {
+    "description": "Password confirmation field label"
+  },
+  "dontHaveAccount": "Don't have an account? Register",
+  "@dontHaveAccount": {
+    "description": "Link to register screen from login"
+  },
+  "alreadyHaveAccount": "Already have an account? Login",
+  "@alreadyHaveAccount": {
+    "description": "Link to login screen from register"
+  },
+  "products": "Products",
+  "@products": {
+    "description": "Products tab and screen title"
+  },
+  "profile": "Profile",
+  "@profile": {
+    "description": "Profile tab and screen title"
+  },
+  "logout": "Logout",
+  "@logout": {
+    "description": "Logout button label"
+  },
+  "profileUpdatedSuccessfully": "Profile updated successfully",
+  "@profileUpdatedSuccessfully": {
+    "description": "Profile updated success message"
+  },
+  "emailRequired": "Email is required",
+  "@emailRequired": {
+    "description": "Email validation message"
+  },
+  "passwordRequired": "Password is required",
+  "@passwordRequired": {
+    "description": "Password validation message"
+  },
+  "nameRequired": "Name is required",
+  "@nameRequired": {
+    "description": "Name validation message"
+  },
+  "passwordConfirmationRequired": "Password confirmation is required",
+  "@passwordConfirmationRequired": {
+    "description": "Password confirmation validation message"
+  },
+  "passwordsDoNotMatch": "Passwords do not match",
+  "@passwordsDoNotMatch": {
+    "description": "Password mismatch validation message"
+  },
+  "productPrice": "Price: {price}",
+  "@productPrice": {
+    "description": "Product price label",
+    "placeholders": {
+      "price": {
+        "type": "String"
+      }
+    }
+  },
+  "productQuantity": "Quantity: {quantity}",
+  "@productQuantity": {
+    "description": "Product quantity label",
+    "placeholders": {
+      "quantity": {
+        "type": "int"
+      }
+    }
+  },
+  "searchProducts": "Search products",
+  "@searchProducts": {
+    "description": "Products search field hint"
+  },
+  "addProduct": "Add Product",
+  "@addProduct": {
+    "description": "Add product screen title and FAB label"
+  },
+  "editProduct": "Edit Product",
+  "@editProduct": {
+    "description": "Edit product screen title"
+  },
+  "deleteProduct": "Delete Product",
+  "@deleteProduct": {
+    "description": "Delete product dialog title"
+  },
+  "deleteProductConfirmation": "Are you sure you want to delete \"{name}\"?",
+  "@deleteProductConfirmation": {
+    "description": "Delete product confirmation message",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "description": "Description",
+  "@description": {
+    "description": "Description field label"
+  },
+  "price": "Price",
+  "@price": {
+    "description": "Price field label"
+  },
+  "quantity": "Quantity",
+  "@quantity": {
+    "description": "Quantity field label"
+  },
+  "save": "Save",
+  "@save": {
+    "description": "Save button label"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Cancel button label"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Delete button label"
+  },
+  "priceRequired": "Price is required",
+  "@priceRequired": {
+    "description": "Price validation message"
+  },
+  "quantityRequired": "Quantity is required",
+  "@quantityRequired": {
+    "description": "Quantity validation message"
+  },
+  "invalidPrice": "Enter a valid price",
+  "@invalidPrice": {
+    "description": "Invalid price validation message"
+  },
+  "invalidQuantity": "Enter a valid quantity",
+  "@invalidQuantity": {
+    "description": "Invalid quantity validation message"
+  },
+  "productCreatedSuccessfully": "Product created successfully",
+  "@productCreatedSuccessfully": {
+    "description": "Product created success message"
+  },
+  "productUpdatedSuccessfully": "Product updated successfully",
+  "@productUpdatedSuccessfully": {
+    "description": "Product updated success message"
+  },
+  "productDeletedSuccessfully": "Product deleted successfully",
+  "@productDeletedSuccessfully": {
+    "description": "Product deleted success message"
+  },
+  "productImage": "Product Image",
+  "@productImage": {
+    "description": "Product image field label"
+  },
+  "chooseFromGallery": "Gallery",
+  "@chooseFromGallery": {
+    "description": "Pick image from gallery button"
+  },
+  "takePhoto": "Camera",
+  "@takePhoto": {
+    "description": "Take photo with camera button"
+  },
+  "removeImage": "Remove selected image",
+  "@removeImage": {
+    "description": "Remove selected product image button"
+  },
+  "noProductsYet": "There are no products yet",
+  "@noProductsYet": {
+    "description": "Empty products list message"
+  }
+}

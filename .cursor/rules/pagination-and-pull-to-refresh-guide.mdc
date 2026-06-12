@@ -1,0 +1,391 @@
+---
+description: Pull-to-refresh and pagination implementation using RefreshableContent, PaginatedListView, and base notifiers.
+alwaysApply: false
+---
+
+# Pull-to-Refresh & Pagination Guide
+
+## Quick Reference
+
+| Data Type | Widget | Notifier |
+|-----------|--------|----------|
+| Non-paginated | `RefreshableContent<T>` | `BaseNotifier<T>` |
+| Paginated | `PaginatedListView<T>` | `PaginatedNotifier<T>` |
+
+---
+
+## Non-Paginated: RefreshableContent
+
+### 1. Create Notifier
+
+**Pattern A: FutureProvider Chain (for early-load screens like Dashboard)**
+
+Use when feature loads immediately after login - services may still be initializing:
+
+```dart
+class DashboardNotifier extends BaseNotifier<Dashboard> {
+  final Ref _ref;
+
+  DashboardNotifier(this._ref) : super();
+
+  @override
+  Future<Result<Dashboard>> fetchData({Map<String, dynamic>? params}) async {
+    try {
+      // Lazily await the use case - safe even if not ready
+      final useCase = await _ref.read(getDashboardUseCaseProvider.future);
+      return await useCase.execute(
+        statsType: params?['statsType'] as DashboardStatsType?,
+        applicationType: params?['applicationType'] as ApplicationType?,
+      );
+    } catch (e) {
+      return Failure(message: 'Failed to initialize: $e');
+    }
+  }
+}
+
+// All providers are FutureProvider - handles async safely
+final dashboardServiceProvider = FutureProvider<DashboardService>((ref) async {
+  final client = await ref.watch(apiClientProvider.future);
+  return client.getService<DashboardService>();
+});
+
+final dashboardRepositoryProvider = FutureProvider<DashboardRepository>((ref) async {
+  final service = await ref.watch(dashboardServiceProvider.future);
+  return DashboardRepository(service);
+});
+
+final getDashboardUseCaseProvider = FutureProvider<GetDashboardUseCase>((ref) async {
+  final repository = await ref.watch(dashboardRepositoryProvider.future);
+  return GetDashboardUseCase(repository);
+});
+
+final dashboardProvider = StateNotifierProvider<DashboardNotifier, BaseState<Dashboard>>((ref) {
+  return DashboardNotifier(ref);
+});
+```
+
+**Pattern B: .requireValue (for lazy-load screens where services are ready)**
+
+Use only when you're 100% certain the service has already loaded:
+
+```dart
+class NotificationNotifier extends PaginatedNotifier<Notification> {
+  final GetNotificationsUseCase _useCase;
+
+  NotificationNotifier(this._useCase) : super();
+
+  @override
+  Future<Result<PaginatedList<Notification>>> fetchPage({...}) async {
+    return await _useCase.execute(...);
+  }
+}
+
+// Service is FutureProvider, rest use .requireValue
+final notificationServiceProvider = FutureProvider<NotificationService>((ref) async {
+  final client = await ref.watch(apiClientProvider.future);
+  return client.getService<NotificationService>();
+});
+
+// ⚠️ Only safe if service is guaranteed to be loaded!
+final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
+  final service = ref.watch(notificationServiceProvider).requireValue;
+  return NotificationRepository(service);
+});
+```
+
+### 2. Use Widget
+
+```dart
+class DashboardScreen extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(dashboardProvider.notifier).loadDashboard();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: RefreshableContent<Dashboard>(
+        state: ref.watch(dashboardProvider),
+        onRefresh: () => ref.read(dashboardProvider.notifier).loadDashboard(),
+        onRetry: () => ref.read(dashboardProvider.notifier).loadDashboard(),
+        childBuilder: (dashboard) => SingleChildScrollView(
+          child: _buildContent(dashboard),
+        ),
+      ),
+    );
+  }
+}
+```
+
+---
+
+## Paginated: PaginatedListView
+
+### 1. Create Notifier
+
+**Pattern 2: With direct use case injection**
+
+```dart
+class NotificationNotifier extends PaginatedNotifier<Notification> {
+  final GetNotificationsUseCase _getNotificationsUseCase;
+  final MarkAllAsReadUseCase _markAllAsReadUseCase;
+
+  NotificationNotifier(
+    this._getNotificationsUseCase,
+    this._markAllAsReadUseCase,
+  ) : super();
+
+  @override
+  Future<Result<PaginatedList<Notification>>> fetchPage({
+    required int page,
+    Map<String, dynamic>? params,
+  }) async {
+    return await _getNotificationsUseCase.execute(
+      page: page,
+      read: params?['read'] as NotificationReadFilter?,
+      includeUnreadCount: params?['includeUnreadCount'] as bool? ?? true,
+    );
+  }
+
+  // Typed convenience methods
+  Future<void> loadNotifications({
+    NotificationReadFilter? read,
+    bool includeUnreadCount = true,
+  }) async {
+    return load(params: {
+      'read': read,
+      'includeUnreadCount': includeUnreadCount,
+    });
+  }
+
+  Future<void> loadMoreNotifications({
+    NotificationReadFilter? read,
+    bool includeUnreadCount = true,
+  }) async {
+    return loadMore(params: {
+      'read': read,
+      'includeUnreadCount': includeUnreadCount,
+    });
+  }
+
+  // Additional business logic methods
+  Future<void> markAllAsRead() async {
+    final result = await _markAllAsReadUseCase.execute();
+    switch (result) {
+      case Success<void>():
+        await loadNotifications(read: NotificationReadFilter.all);
+      case Failure<void>(:final message):
+        state = PaginatedState.error(message);
+    }
+  }
+}
+
+final notificationProvider = StateNotifierProvider<NotificationNotifier, PaginatedState<Notification>>((ref) {
+  final getUseCase = ref.watch(getNotificationsUseCaseProvider);
+  final markReadUseCase = ref.watch(markAllAsReadUseCaseProvider);
+  return NotificationNotifier(getUseCase, markReadUseCase);
+});
+```
+
+### 2. Use Widget
+
+```dart
+class NotificationsScreen extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
+  NotificationReadFilter _filter = NotificationReadFilter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(notificationProvider.notifier).loadNotifications(read: _filter);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Scaffold(
+      body: PaginatedListView<Notification>(
+        state: ref.watch(notificationProvider),
+        onRefresh: () => ref.read(notificationProvider.notifier)
+            .loadNotifications(read: _filter),
+        onLoadMore: () => ref.read(notificationProvider.notifier)
+            .loadMoreNotifications(read: _filter),
+        itemBuilder: (context, notification, index) => NotificationItem(
+          notification: notification,
+        ),
+        emptyWidget: Center(child: Text(l10n.noNotifications)),
+      ),
+    );
+  }
+}
+```
+
+---
+
+## Widget Props
+
+### RefreshableContent<T>
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `state` | `BaseState<T>` | State from notifier |
+| `onRefresh` | `Future<void> Function()` | Refresh callback |
+| `childBuilder` | `Widget Function(T data)` | Build content |
+| `onRetry` | `VoidCallback?` | Error retry callback |
+| `emptyWidget` | `Widget?` | Empty state widget |
+| `isEmpty` | `bool Function(T)?` | Custom empty check |
+
+### PaginatedListView<T>
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `state` | `PaginatedState<T>` | State from notifier |
+| `onRefresh` | `Future<void> Function()` | Refresh (page 1) |
+| `onLoadMore` | `Future<void> Function()?` | Load next page |
+| `itemBuilder` | `Widget Function(BuildContext, T, int)` | Build item |
+| `emptyWidget` | `Widget?` | Empty state widget |
+| `scrollController` | `ScrollController?` | Optional controller |
+| `padding` | `EdgeInsets?` | List padding |
+| `loadMoreThreshold` | `double` | Trigger threshold (0.9) |
+
+---
+
+## Key Behaviors
+
+### Initial Load
+- Shows full-screen loading spinner
+- Use `addPostFrameCallback` in `initState`
+
+### Refresh (Pull-to-Refresh)
+- Shows refresh indicator
+- **Keeps previous data visible** (not spinner)
+- For paginated: **Always resets to page 1**
+
+### Load More (Paginated)
+- Triggered at 90% scroll
+- Shows loading at bottom
+- Appends new items
+
+### Error State
+- Shows error message with retry button
+- Previous data preserved if available
+
+---
+
+## State Classes
+
+### BaseState<T>
+
+```dart
+BaseState.initial()           // Before first load
+BaseState.loading()           // Initial loading
+BaseState.loaded(T data)      // Has data
+BaseState.error(String msg)   // Error occurred
+```
+
+### PaginatedState<T>
+
+```dart
+PaginatedState.initial()                        // Before first load
+PaginatedState.loading()                        // Initial loading
+PaginatedState.loaded(PaginatedList<T> data)   // Has data
+PaginatedState.loadingMore(PaginatedList<T>)   // Loading next page
+PaginatedState.error(String msg)               // Error occurred
+```
+
+### PaginatedList<T>
+
+```dart
+PaginatedList(
+  items: List<T>,
+  currentPage: int,
+  lastPage: int,
+  perPage: int,
+  total: int,
+)
+
+// Getters
+paginatedList.hasMore     // More pages exist
+paginatedList.isFirstPage // On first page
+paginatedList.isEmpty     // No items
+
+// Methods
+paginatedList.appendPage(newPage)  // Merge pages
+```
+
+---
+
+## Common Mistakes
+
+### ❌ Wrong: Non-scrollable child
+
+```dart
+RefreshIndicator(
+  onRefresh: () async {},
+  child: Column(children: [...]), // Not scrollable!
+)
+```
+
+### ✅ Correct: Scrollable child
+
+```dart
+RefreshableContent<Data>(
+  state: state,
+  childBuilder: (data) => SingleChildScrollView(
+    child: Column(children: [...]),
+  ),
+)
+```
+
+### ❌ Wrong: Load current page on refresh
+
+```dart
+onRefresh: () => loadPage(currentPage), // Wrong for pagination
+```
+
+### ✅ Correct: Reset to page 1
+
+```dart
+onRefresh: () => load(), // PaginatedNotifier.load() always loads page 1
+```
+
+---
+
+## File Locations
+
+| File | Location |
+|------|----------|
+| RefreshableContent | `lib/core/widgets/refreshable_content.dart` |
+| PaginatedListView | `lib/core/widgets/paginated_list_view.dart` |
+| BaseNotifier | `lib/core/presentation/providers/base_notifier.dart` |
+| BaseState | `lib/core/presentation/providers/base_state.dart` |
+| PaginatedNotifier | `lib/core/presentation/providers/paginated_notifier.dart` |
+| PaginatedState | `lib/core/presentation/providers/paginated_state.dart` |
+| PaginatedList | `lib/core/domain/paginated_list.dart` |
+
+---
+
+## Checklist
+
+- [ ] Extend `BaseNotifier<T>` or `PaginatedNotifier<T>`
+- [ ] Use `RefreshableContent<T>` or `PaginatedListView<T>`
+- [ ] Initial load in `initState` with `addPostFrameCallback`
+- [ ] Typed convenience methods on notifier
+- [ ] Empty widget for empty state
+- [ ] All strings use `AppLocalizations`

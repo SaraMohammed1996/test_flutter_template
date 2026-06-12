@@ -1,0 +1,189 @@
+---
+description: AI assistant task execution guidelines - how to approach and complete tasks in this project.
+alwaysApply: false
+---
+
+# AI Task Execution Guide
+
+## Before Starting
+
+### 1. Understand the Task
+- Confirm instructions received
+- Summarize main tasks
+- Identify key requirements
+
+### 2. Check for Existing Code
+- Search for similar functionality
+- Check for duplicate components
+- Find reusable patterns
+
+### 3. Review Project Rules
+- Read `_core-rules.mdc` (always applied)
+- Check relevant guides (architecture, state, etc.)
+- Note tech stack constraints
+
+---
+
+## Implementation Guidelines
+
+### Follow Clean Architecture
+
+```
+features/<feature>/
+├── data/        # DTOs, Repositories
+├── domain/      # Use cases, Domain models
+└── presentation/ # Screens, Providers, Widgets
+```
+
+### Use Existing Patterns
+
+| For | Use |
+|-----|-----|
+| State management | `BaseNotifier<T>` or `PaginatedNotifier<T>` |
+| Pull-to-refresh | `RefreshableContent<T>` or `PaginatedListView<T>` |
+| Error handling | `Result` pattern with `Success`/`Failure` |
+| State classes | Freezed sealed unions |
+| API enums | `EnumClass` with `wireName`/`wireNumber` |
+| Async providers | `FutureProvider` for services/repositories |
+| Notifier with async deps | Pass `Ref` to notifier constructor |
+| Local storage | `SharedPreferences` via `sharedPreferencesProvider` |
+| Settings persistence | Repository with JSON encode/decode |
+| Cards/containers | `CardContainer`, `DashboardCard` |
+| Buttons | `PrimaryButton` |
+| Inputs | `InputField` |
+| Status display | `StatusBadge`, `StatItem` |
+| Loading spinners | `SpinKitPulse` from flutter_spinkit |
+
+### Naming Conventions
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Files | `snake_case` | `login_screen.dart` |
+| Classes | `PascalCase` | `LoginScreen` |
+| Variables | `camelCase` | `userName` |
+
+---
+
+## Critical Rules (Never Violate)
+
+1. **NO hardcoded colors** → Use `AppTheme` or `Theme.of(context)`
+2. **NO hardcoded strings** → Use `AppLocalizations`
+3. **NO left/right positioning** → Use `start`/`end`
+4. **NO hardcoded spacing** → Use `AppTheme.spacing*`
+5. **NO unauthorized changes** → Only implement what's requested
+
+---
+
+## Quality Checks
+
+After each change:
+
+- [ ] No linter errors
+- [ ] Follows architecture layers
+- [ ] Uses existing patterns
+- [ ] Theme values (no hardcoded colors/styles)
+- [ ] Localized strings
+- [ ] RTL-aware properties
+- [ ] Generated files updated (if needed)
+
+---
+
+## Code Generation
+
+Run when modifying Freezed, Built Value, or Chopper files:
+
+```bash
+flutter pub run build_runner build --delete-conflicting-outputs
+```
+
+---
+
+## Restrictions
+
+| ❌ Forbidden | Why |
+|-------------|-----|
+| UI/UX changes without approval | Design consistency |
+| Version changes without approval | Stability |
+| README updates | Unless requested |
+| Modifying generated files | They're auto-generated |
+| Hardcoded colors | Use theme |
+| Hardcoded strings | Use localization |
+| Hardcoded left/right | Use start/end |
+
+---
+
+## Reporting
+
+### During Implementation
+- Report progress after each major step
+- Flag any unclear requirements
+- Report unexpected issues immediately
+
+### After Completion
+- Summary of changes made
+- Files modified/created
+- Any follow-up needed
+- Testing notes
+
+---
+
+## Quick Reference
+
+### Feature Implementation
+
+1. **Data Layer** (`features/<feature>/data/`)
+   - Create DTOs in `data/models/<entity>_dto.dart`
+   - Create enums in `data/models/<feature>_enums.dart`
+   - Create repository in `data/<feature>_repository.dart`
+   - Register DTOs/enums in `core/api/serializers.dart`
+
+2. **Domain Layer** (`features/<feature>/domain/`)
+   - Create domain model in `domain/models/<entity>.dart`
+   - Create use case in `domain/use_cases/<action>_<entity>_use_case.dart`
+
+3. **Presentation Layer** (`features/<feature>/presentation/`)
+   - Create state with Freezed in `providers/<feature>_state.dart`
+   - Create notifier extending base class in `providers/<feature>_provider.dart`
+   - Create screen in `screens/<feature>_screen.dart`
+   - Create widgets in `widgets/<widget_name>.dart`
+
+4. **Provider Wiring** (in `<feature>_provider.dart`)
+   
+   **For features that load immediately after login (Dashboard, etc):**
+   ```dart
+   // All FutureProviders to handle async safely
+   final serviceProvider = FutureProvider<Service>((ref) async {
+     final client = await ref.watch(apiClientProvider.future);
+     return client.getService<Service>();
+   });
+   
+   final repositoryProvider = FutureProvider<Repository>((ref) async {
+     final service = await ref.watch(serviceProvider.future);
+     return Repository(service);
+   });
+   
+   final useCaseProvider = FutureProvider<UseCase>((ref) async {
+     final repo = await ref.watch(repositoryProvider.future);
+     return UseCase(repo);
+   });
+   
+   // Notifier uses Ref to lazily await use case
+   final featureProvider = StateNotifierProvider<Notifier, State>((ref) {
+     return Notifier(ref);  // Pass Ref, await useCase in fetchData
+   });
+   ```
+   
+   **For features accessed later (lazy screens):**
+   ```dart
+   // ⚠️ Only use .requireValue when service is guaranteed ready!
+   final repositoryProvider = Provider<Repository>((ref) {
+     final service = ref.watch(serviceProvider).requireValue;
+     return Repository(service);
+   });
+   ```
+
+5. **Finalize**
+   - Run `flutter pub run build_runner build --delete-conflicting-outputs`
+   - Add translations to `lib/l10n/intl_en.arb` and `intl_ar.arb`
+   - Run `flutter gen-l10n`
+   - Test both languages (ar/en)

@@ -1,0 +1,338 @@
+---
+description: Localization and RTL guide - AppLocalizations, multi-language support, and Figma RTL conversion.
+alwaysApply: false
+---
+
+# Localization & RTL Guide
+
+## Supported Languages
+
+- **Arabic (ar)** - RTL (Right-to-Left) - Default
+- **English (en)** - LTR (Left-to-Right)
+
+---
+
+## Using AppLocalizations
+
+### Required Import
+
+```dart
+import 'package:yuser_hr_app/l10n/app_localizations.dart';
+```
+
+### Basic Usage
+
+```dart
+// ✅ Correct - Always use AppLocalizations
+Text(AppLocalizations.of(context)!.welcome)
+Text(AppLocalizations.of(context)!.errorOccurred)
+
+// ❌ Wrong - Never hardcode strings
+Text('Welcome')
+Text('Error occurred')
+```
+
+### In Widgets
+
+```dart
+class MyWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    
+    return Column(
+      children: [
+        Text(l10n.welcome),
+        Text(l10n.loginTitle),
+        ElevatedButton(
+          onPressed: () {},
+          child: Text(l10n.submit),
+        ),
+      ],
+    );
+  }
+}
+```
+
+---
+
+## Locale Management
+
+### Provider Location
+
+`lib/core/providers/locale_provider.dart`
+
+### Usage
+
+```dart
+// Get current locale
+final locale = ref.watch(localeProvider);
+
+// Change locale
+ref.read(localeProvider.notifier).setLocale(Locale('en'));
+ref.read(localeProvider.notifier).setLocale(Locale('ar'));
+
+// Toggle between ar/en
+ref.read(localeProvider.notifier).toggleLocale();
+```
+
+---
+
+## Adding New Translations
+
+### 1. Edit ARB Files
+
+Location: `lib/l10n/`
+
+**intl_en.arb:**
+```json
+{
+  "@newKey": {
+    "description": "Description of the string"
+  },
+  "newKey": "English text"
+}
+```
+
+**intl_ar.arb:**
+```json
+{
+  "@newKey": {
+    "description": "Description of the string"
+  },
+  "newKey": "النص العربي"
+}
+```
+
+### 2. Generate
+
+```bash
+flutter gen-l10n
+```
+
+### 3. Use in Code
+
+```dart
+Text(AppLocalizations.of(context)!.newKey)
+```
+
+---
+
+## RTL-Aware Properties
+
+### ⚠️ CRITICAL: Never Use left/right
+
+**Always use `start`/`end` instead of `left`/`right`:**
+
+### EdgeInsets
+
+```dart
+// ❌ Wrong
+EdgeInsets.only(left: 16, right: 8)
+EdgeInsets.fromLTRB(16, 0, 8, 0)
+
+// ✅ Correct
+EdgeInsetsDirectional.only(start: 16, end: 8)
+EdgeInsetsDirectional.fromSTEB(16, 0, 8, 0)
+```
+
+### Alignment
+
+```dart
+// ❌ Wrong
+Alignment.centerLeft
+Alignment.topRight
+CrossAxisAlignment.start // This is OK
+
+// ✅ Correct
+AlignmentDirectional.centerStart
+AlignmentDirectional.topEnd
+```
+
+### BorderRadius
+
+```dart
+// ❌ Wrong
+BorderRadius.only(
+  topLeft: Radius.circular(8),
+  bottomRight: Radius.circular(8),
+)
+
+// ✅ Correct
+BorderRadiusDirectional.only(
+  topStart: Radius.circular(8),
+  bottomEnd: Radius.circular(8),
+)
+```
+
+### Positioned (in Stack)
+
+```dart
+// ❌ Wrong
+Positioned(left: 16, child: widget)
+
+// ✅ Correct
+PositionedDirectional(start: 16, child: widget)
+```
+
+### Text Alignment
+
+```dart
+// ✅ Correct - Use start/end
+Text('Hello', textAlign: TextAlign.start)
+Text('Hello', textAlign: TextAlign.end)
+
+// ⚠️ Avoid left/right unless specifically needed
+Text('Hello', textAlign: TextAlign.left)  // Only for LTR-only content
+```
+
+---
+
+## RTL Conversion Table
+
+| Non-RTL Property | RTL-Aware Replacement |
+|------------------|----------------------|
+| `EdgeInsets.only(left:)` | `EdgeInsetsDirectional.only(start:)` |
+| `EdgeInsets.only(right:)` | `EdgeInsetsDirectional.only(end:)` |
+| `Alignment.centerLeft` | `AlignmentDirectional.centerStart` |
+| `Alignment.centerRight` | `AlignmentDirectional.centerEnd` |
+| `Alignment.topLeft` | `AlignmentDirectional.topStart` |
+| `Alignment.topRight` | `AlignmentDirectional.topEnd` |
+| `Alignment.bottomLeft` | `AlignmentDirectional.bottomStart` |
+| `Alignment.bottomRight` | `AlignmentDirectional.bottomEnd` |
+| `BorderRadius.only(topLeft:)` | `BorderRadiusDirectional.only(topStart:)` |
+| `BorderRadius.only(topRight:)` | `BorderRadiusDirectional.only(topEnd:)` |
+| `Positioned(left:)` | `PositionedDirectional(start:)` |
+| `Positioned(right:)` | `PositionedDirectional(end:)` |
+| `TextAlign.left` | `TextAlign.start` |
+| `TextAlign.right` | `TextAlign.end` |
+
+---
+
+## Figma RTL Conversion
+
+### ⚠️ Important: Figma Doesn't Support RTL
+
+Designers use workarounds in Figma. You must convert:
+
+| Figma Shows | Flutter Should Be |
+|-------------|-------------------|
+| `left: 16` | `start: 16` |
+| `right: 16` | `end: 16` |
+| `align: left` | `AlignmentDirectional.centerStart` |
+| `align: right` | `AlignmentDirectional.centerEnd` |
+| `padding-left` | `EdgeInsetsDirectional.only(start:)` |
+| `padding-right` | `EdgeInsetsDirectional.only(end:)` |
+| `border-radius: top-left` | `BorderRadiusDirectional.topStart` |
+| `border-radius: top-right` | `BorderRadiusDirectional.topEnd` |
+
+### Example Conversion
+
+**Figma Design:**
+- Padding left: 16px
+- Padding right: 8px
+- Border radius: top-left 12px
+
+**Flutter Implementation:**
+
+```dart
+Container(
+  padding: EdgeInsetsDirectional.only(start: 16, end: 8),
+  decoration: BoxDecoration(
+    borderRadius: BorderRadiusDirectional.only(
+      topStart: Radius.circular(12),
+    ),
+  ),
+)
+```
+
+---
+
+## Date/Number Formatting
+
+Use `intl` package for locale-aware formatting:
+
+```dart
+import 'package:intl/intl.dart' as intl;
+
+// Get locale
+final locale = ref.watch(localeProvider);
+
+// Date formatting
+final dateFormat = intl.DateFormat.yMMMMd(locale.languageCode);
+final formattedDate = dateFormat.format(DateTime.now());
+// ar: ٣٠ نوفمبر ٢٠٢٥
+// en: November 30, 2025
+
+// Number formatting
+final numberFormat = intl.NumberFormat.decimalPattern(locale.languageCode);
+final formattedNumber = numberFormat.format(1234.56);
+// ar: ١٬٢٣٤٫٥٦
+// en: 1,234.56
+
+// Currency formatting
+final currencyFormat = intl.NumberFormat.currency(
+  locale: locale.languageCode,
+  symbol: 'SAR',
+);
+```
+
+---
+
+## Checking Text Direction
+
+When you need to check direction programmatically:
+
+```dart
+final isRTL = Directionality.of(context) == TextDirection.rtl;
+
+// Override direction (use sparingly)
+Directionality(
+  textDirection: TextDirection.ltr, // Force LTR for specific content
+  child: widget,
+)
+```
+
+---
+
+## Icons in RTL
+
+Most icons flip automatically. To prevent flipping:
+
+```dart
+// Icon flips automatically in RTL
+Icon(Icons.arrow_forward)  // ✅ Flips correctly
+
+// Prevent icon from flipping
+Directionality(
+  textDirection: TextDirection.ltr,
+  child: Icon(Icons.arrow_forward),  // Won't flip
+)
+```
+
+---
+
+## Implementation Checklist
+
+When implementing any UI:
+
+- [ ] All user-facing strings use `AppLocalizations`
+- [ ] All `left`/`right` converted to `start`/`end`
+- [ ] Using `EdgeInsetsDirectional` for directional padding
+- [ ] Using `AlignmentDirectional` for directional alignment
+- [ ] Using `BorderRadiusDirectional` for directional corners
+- [ ] Using `PositionedDirectional` in Stacks
+- [ ] Tested in Arabic (RTL)
+- [ ] Tested in English (LTR)
+- [ ] Icons flip correctly (or prevented where needed)
+- [ ] Dates/numbers formatted with `intl`
+
+---
+
+## File Locations
+
+| File | Location |
+|------|----------|
+| ARB files | `lib/l10n/intl_*.arb` |
+| Generated localizations | `lib/l10n/app_localizations*.dart` |
+| Locale provider | `lib/core/providers/locale_provider.dart` |

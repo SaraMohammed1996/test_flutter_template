@@ -1,0 +1,359 @@
+---
+description: Clean Architecture guide - project structure, feature organization, and layer responsibilities.
+alwaysApply: false
+---
+
+# Architecture Guide
+
+## Project Structure
+
+```
+lib/
+├── core/                       # Shared infrastructure
+│   ├── api/                    # API layer (Chopper, interceptors)
+│   ├── domain/                 # Shared domain (Result, PaginatedList)
+│   ├── presentation/providers/ # Base notifiers (BaseNotifier, PaginatedNotifier)
+│   ├── providers/              # Global providers (locale, config)
+│   ├── theme/                  # AppTheme
+│   └── widgets/                # Reusable widgets
+├── features/                   # Feature modules
+│   └── <feature_name>/
+│       ├── data/               # Data layer
+│       ├── domain/             # Domain layer
+│       └── presentation/       # Presentation layer
+├── l10n/                       # Localization (ARB files)
+└── main.dart                   # Entry point
+```
+
+---
+
+## Feature Structure
+
+Each feature follows Clean Architecture with three layers:
+
+```
+features/<feature>/
+├── data/                       # DATA LAYER
+│   ├── models/                 # DTOs (Data Transfer Objects)
+│   │   ├── <entity>_dto.dart
+│   │   ├── <entity>_dto.g.dart     # Generated
+│   │   └── <feature>_enums.dart    # EnumClass definitions
+│   └── <feature>_repository.dart
+│
+├── domain/                     # DOMAIN LAYER
+│   ├── models/                 # Domain models (pure entities)
+│   │   └── <entity>.dart
+│   └── use_cases/              # Business logic
+│       └── <action>_<entity>_use_case.dart
+│
+└── presentation/               # PRESENTATION LAYER
+    ├── screens/
+    │   └── <screen>_screen.dart
+    ├── providers/
+    │   ├── <feature>_provider.dart
+    │   ├── <feature>_state.dart
+    │   └── <feature>_state.freezed.dart  # Generated
+    └── widgets/
+        └── <widget>.dart
+```
+
+---
+
+## Layer Responsibilities
+
+### Data Layer (`data/`)
+
+**Purpose:** Handle data access and API communication.
+
+**Contains:**
+- **DTOs:** API request/response models with serialization
+- **Repositories:** Abstract data sources, convert DTOs → Domain models
+- **Enums:** EnumClass definitions for API values
+
+```dart
+// data/models/user_dto.dart
+class UserDto {
+  final String id;
+  final String name;
+  // JSON serialization methods
+}
+
+// data/auth_repository.dart
+class AuthRepository {
+  final AuthService _service;
+  
+  Future<Result<User>> login(String email, String password) async {
+    try {
+      final dto = await _service.login(email, password);
+      return Success(dto.toDomain()); // Convert DTO → Domain
+    } catch (e) {
+      return Failure(e.toString());
+    }
+  }
+}
+```
+
+### Domain Layer (`domain/`)
+
+**Purpose:** Business logic and pure domain models.
+
+**Contains:**
+- **Domain Models:** Pure entities (no serialization, no framework deps)
+- **Use Cases:** Single business operations
+
+```dart
+// domain/models/user.dart
+class User {
+  final String id;
+  final String name;
+  // Pure domain model - NO JSON, NO frameworks
+}
+
+// domain/use_cases/login_user_use_case.dart
+class LoginUserUseCase {
+  final AuthRepository _repository;
+  
+  Future<Result<User>> execute(String email, String password) {
+    // Business logic here
+    return _repository.login(email, password);
+  }
+}
+```
+
+### Presentation Layer (`presentation/`)
+
+**Purpose:** UI rendering and state management.
+
+**Contains:**
+- **Screens:** UI widgets that display data
+- **Providers:** StateNotifiers that manage UI state
+- **Widgets:** Feature-specific UI components
+
+```dart
+// presentation/providers/auth_provider.dart
+class AuthNotifier extends StateNotifier<AuthState> {
+  final LoginUserUseCase _useCase;
+  
+  Future<void> login(String email, String password) async {
+    state = const AuthState.loading();
+    final result = await _useCase.execute(email, password);
+    switch (result) {
+      case Success(:final data): state = AuthState.authenticated(data);
+      case Failure(:final message): state = AuthState.error(message);
+    }
+  }
+}
+
+// presentation/screens/login_screen.dart
+class LoginScreen extends ConsumerWidget {
+  // UI only - delegate logic to provider
+}
+```
+
+---
+
+## Dependency Flow
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    PRESENTATION                          │
+│  (Screens, Providers, Widgets)                          │
+│                        │                                 │
+│                        ▼                                 │
+├─────────────────────────────────────────────────────────┤
+│                      DOMAIN                              │
+│  (Use Cases, Domain Models)                             │
+│                        │                                 │
+│                        ▼                                 │
+├─────────────────────────────────────────────────────────┤
+│                       DATA                               │
+│  (Repositories, DTOs, API Services)                     │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Rule:** Dependencies point INWARD only.
+- Presentation depends on Domain
+- Domain depends on Data (via abstractions)
+- Data never depends on Presentation
+
+---
+
+## File Placement Guidelines
+
+| Type | Location | Example |
+|------|----------|---------|
+| Feature DTOs | `features/<feature>/data/models/` | `user_dto.dart` |
+| Feature Enums | `features/<feature>/data/models/` | `user_enums.dart` |
+| Feature Repos | `features/<feature>/data/` | `auth_repository.dart` |
+| Domain Models | `features/<feature>/domain/models/` | `user.dart` |
+| Use Cases | `features/<feature>/domain/use_cases/` | `login_user_use_case.dart` |
+| Providers | `features/<feature>/presentation/providers/` | `auth_provider.dart` |
+| Screens | `features/<feature>/presentation/screens/` | `login_screen.dart` |
+| Feature Widgets | `features/<feature>/presentation/widgets/` | `login_form.dart` |
+| Shared Widgets | `core/widgets/` | `refreshable_content.dart` |
+| API Services | `core/api/services/` | `auth_service.dart` |
+| Global Providers | `core/providers/` | `locale_provider.dart` |
+
+---
+
+## Core Directory Details
+
+### `core/api/`
+- `services/` - Chopper service definitions (`.dart` + `.chopper.dart`)
+- `models/` - Shared API DTOs and enums
+- `models/enum/` - Shared enums (`application_enums.dart`, `boolean_flag.dart`)
+- `interceptors/` - HTTP interceptors (`auth_interceptor.dart`, `header_interceptor.dart`)
+- `converters/` - Response converters (`built_value_converter.dart`)
+- `serializers/` - Custom plugins (`int_to_bool_plugin.dart`, `string_to_number_plugin.dart`)
+- `errors/` - API error handling (`api_errors.dart`)
+- `serializers.dart` - Built Value serializers config
+- `api_client.dart` - Chopper client setup
+
+### `core/domain/`
+- `result.dart` - Result<T> pattern for error handling
+- `paginated_list.dart` - Reusable pagination model
+
+### `core/presentation/providers/`
+- `base_notifier.dart` - Base for non-paginated features
+- `base_state.dart` - Reusable state for non-paginated
+- `paginated_notifier.dart` - Base for paginated features
+- `paginated_state.dart` - Reusable state for paginated
+
+### `core/providers/`
+- `api_config_provider.dart` - API configuration + `sharedPreferencesProvider`
+- `locale_provider.dart` - Locale management with persistence
+- `fcm_provider.dart` - Firebase Cloud Messaging
+
+### `core/storage/`
+- `credentials_storage.dart` - Secure credentials storage
+
+### `core/widgets/`
+- `refreshable_content.dart` - Pull-to-refresh wrapper
+- `paginated_list_view.dart` - Infinite scroll list
+- `error_state_widget.dart` - Error display
+- `loading_state_widget.dart` - Loading indicator
+- `card_container.dart` - Styled card wrapper
+- `dashboard_card.dart` - Dashboard card component
+- `icon_container.dart` - Icon with background
+- `input_field.dart` - Styled text field
+- `primary_button.dart` - Primary button
+- `status_badge.dart` - Status indicator
+- `stat_item.dart` - Statistics display
+- `language_toggle.dart` - AR/EN switcher
+
+---
+
+## Naming Conventions
+
+| Type | Convention | Example |
+|------|------------|---------|
+| Files | `snake_case` | `login_screen.dart` |
+| Classes | `PascalCase` | `LoginScreen` |
+| Variables | `camelCase` | `userName` |
+| Functions | `camelCase` | `loginUser()` |
+| Private | `_prefix` | `_authService` |
+| Providers | `<feature>Provider` | `authProvider` |
+| Notifiers | `<Feature>Notifier` | `AuthNotifier` |
+| States | `<Feature>State` | `AuthState` |
+| DTOs | `<Entity>Dto` | `UserDto` |
+| Use Cases | `<Action><Entity>UseCase` | `LoginUserUseCase` |
+| Repositories | `<Feature>Repository` | `AuthRepository` |
+
+---
+
+## Routing (GoRouter)
+
+Routes defined in `lib/main.dart`:
+
+```dart
+final routerProvider = Provider<GoRouter>((ref) {
+  return GoRouter(
+    initialLocation: '/',
+    refreshListenable: authNotifier,  // Refresh on auth changes
+    redirect: (context, state) {
+      // Auth redirect logic
+    },
+    routes: [
+      GoRoute(path: '/', builder: (context, state) => const WelcomeScreen()),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(path: '/dashboard', builder: (context, state) => const DashboardScreen()),
+      // Modal/overlay routes with fade transition
+      GoRoute(
+        path: '/settings',
+        pageBuilder: (context, state) => CustomTransitionPage(
+          key: state.pageKey,
+          child: const SettingsScreen(),
+          transitionsBuilder: (context, animation, _, child) =>
+              FadeTransition(opacity: animation, child: child),
+          opaque: false,
+        ),
+      ),
+    ],
+  );
+});
+```
+
+**Navigation:**
+```dart
+context.go('/dashboard');      // Replace current route
+context.push('/settings');     // Push on top
+context.pop();                 // Go back
+context.go('/error-alert', extra: 'Error message');  // Pass data
+```
+
+---
+
+## Code Generation
+
+Run when modifying Freezed, Built Value, or Chopper files:
+
+```bash
+flutter pub run build_runner build --delete-conflicting-outputs
+```
+
+**Generated files (do NOT edit):**
+- `*.freezed.dart` - Freezed state classes
+- `*.g.dart` - JSON serialization, Built Value
+- `*.chopper.dart` - Chopper service implementations
+
+---
+
+## Local Storage Pattern
+
+For features needing persistence (e.g., settings):
+
+```dart
+// 1. Create data model with toJson/fromJson
+class SettingsModel {
+  final bool notificationsEnabled;
+  Map<String, dynamic> toJson() => {...};
+  factory SettingsModel.fromJson(Map<String, dynamic> json) => ...;
+}
+
+// 2. Create repository with SharedPreferences
+class SettingsRepository {
+  final SharedPreferences _prefs;
+  static const String _key = 'app_settings';
+  
+  SettingsModel getSettings() {
+    final json = _prefs.getString(_key);
+    return json != null ? SettingsModel.fromJson(jsonDecode(json)) : SettingsModel();
+  }
+  
+  Future<void> saveSettings(SettingsModel settings) async {
+    await _prefs.setString(_key, jsonEncode(settings.toJson()));
+  }
+}
+
+// 3. Create provider using sharedPreferencesProvider
+final settingsRepositoryProvider = Provider<SettingsRepository>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider).requireValue;
+  return SettingsRepository(prefs);
+});
+```
+
+**Access SharedPreferences:**
+```dart
+// Global SharedPreferences provider (from api_config_provider.dart)
+final prefs = ref.watch(sharedPreferencesProvider).requireValue;
+```

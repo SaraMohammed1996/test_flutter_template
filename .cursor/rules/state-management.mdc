@@ -1,0 +1,381 @@
+---
+description: Riverpod state management patterns - providers, notifiers, states, and Result pattern.
+alwaysApply: false
+---
+
+# State Management Guide
+
+## Provider Types
+
+| Provider | Use Case | Example |
+|----------|----------|---------|
+| `StateNotifierProvider` | Complex state with business logic | Auth, Dashboard |
+| `Provider` | Dependencies, services | Repositories, Use Cases |
+| `StateProvider` | Simple mutable state (use sparingly) | Selected filter |
+| `FutureProvider` | Async data without manual refresh | Config data |
+
+---
+
+## Base Classes
+
+### For Non-Paginated Features: `BaseNotifier<T>`
+
+```dart
+class DashboardNotifier extends BaseNotifier<Dashboard> {
+  final GetDashboardUseCase _useCase;
+  
+  DashboardNotifier(this._useCase) : super();
+  
+  @override
+  Future<Result<Dashboard>> fetchData({Map<String, dynamic>? params}) async {
+    return await _useCase.execute(
+      statsType: params?['statsType'] as String?,
+    );
+  }
+  
+  // Convenience method with typed parameters
+  Future<void> loadDashboard({String? statsType}) async {
+    return load(params: {'statsType': statsType});
+  }
+}
+
+final dashboardProvider = StateNotifierProvider<DashboardNotifier, BaseState<Dashboard>>((ref) {
+  final useCase = ref.watch(getDashboardUseCaseProvider);
+  return DashboardNotifier(useCase);
+});
+```
+
+### For Paginated Features: `PaginatedNotifier<T>`
+
+```dart
+class NotificationNotifier extends PaginatedNotifier<Notification> {
+  final GetNotificationsUseCase _useCase;
+  
+  NotificationNotifier(this._useCase) : super();
+
+  @override
+  Future<Result<PaginatedList<Notification>>> fetchPage({
+    required int page,
+    Map<String, dynamic>? params,
+  }) async {
+    return await _useCase.execute(
+      page: page,
+      read: params?['read'] as String?,
+    );
+  }
+  
+  Future<void> loadNotifications({String? read}) async {
+    return load(params: {'read': read});
+  }
+  
+  Future<void> loadMoreNotifications({String? read}) async {
+    return loadMore(params: {'read': read});
+  }
+}
+
+final notificationProvider = StateNotifierProvider<NotificationNotifier, PaginatedState<Notification>>((ref) {
+  final useCase = ref.watch(getNotificationsUseCaseProvider);
+  return NotificationNotifier(useCase);
+});
+```
+
+---
+
+## State Classes (Freezed)
+
+### Non-Paginated State
+
+Use `BaseState<T>` from `core/presentation/providers/base_state.dart`:
+
+```dart
+// States available:
+BaseState.initial()
+BaseState.loading()
+BaseState.loaded(T data)
+BaseState.error(String message)
+```
+
+### Custom State with Operations (e.g., Profile)
+
+For features with update operations, add updating/updated states:
+
+```dart
+@freezed
+class ProfileState with _$ProfileState {
+  const factory ProfileState.initial() = _Initial;
+  const factory ProfileState.loading() = _Loading;
+  const factory ProfileState.loaded(Profile profile) = _Loaded;
+  const factory ProfileState.updating(Profile profile) = _Updating;  // Show loading while keeping data
+  const factory ProfileState.updated(Profile profile) = _Updated;    // Success feedback
+  const factory ProfileState.error(String message, {Profile? profile}) = _Error;  // Keep data on error
+}
+```
+
+Or create custom state:
+
+```dart
+@freezed
+class AuthState with _$AuthState {
+  const factory AuthState.initial() = _Initial;
+  const factory AuthState.loading() = _Loading;
+  const factory AuthState.authenticated(User user) = _Authenticated;
+  const factory AuthState.unauthenticated() = _Unauthenticated;
+  const factory AuthState.error(String message) = _Error;
+}
+```
+
+### Paginated State
+
+Use `PaginatedState<T>` from `core/presentation/providers/paginated_state.dart`:
+
+```dart
+// States available:
+PaginatedState.initial()
+PaginatedState.loading()
+PaginatedState.loaded(PaginatedList<T> data)
+PaginatedState.loadingMore(PaginatedList<T> data)  // Infinite scroll
+PaginatedState.error(String message)
+```
+
+---
+
+## Result Pattern
+
+Located in `core/domain/result.dart`:
+
+```dart
+sealed class Result<T> {}
+final class Success<T> extends Result<T> { final T data; }
+final class Failure<T> extends Result<T> { 
+  final String message;
+  final String? code;
+  final Map<String, dynamic>? data;
+}
+```
+
+### Extension Methods Available
+
+```dart
+// Fold into single value
+result.fold(
+  onSuccess: (success) => handleData(success.data),
+  onFailure: (failure) => handleError(failure.message),
+);
+
+// Map success to another type
+Result<UserDto> dtoResult = ...;
+Result<User> domainResult = dtoResult.map((dto) => dto.toDomain());
+
+// Quick accessors
+result.dataOrNull      // T? - data if success, null if failure
+result.failureMessage  // String? - message if failure, null if success
+result.isSuccess       // bool
+result.isFailure       // bool
+```
+
+### Usage in Use Cases
+
+```dart
+Future<Result<User>> execute(String email, String password) async {
+  try {
+    final user = await _repository.login(email, password);
+    return Success(user);
+  } on NetworkException catch (e) {
+    return Failure(message: e.message, code: 'NETWORK_ERROR');
+  } catch (e) {
+    return Failure(message: e.toString());
+  }
+}
+```
+
+### Usage in Notifiers
+
+```dart
+Future<void> login(String email, String password) async {
+  state = const AuthState.loading();
+  final result = await _useCase.execute(email, password);
+  
+  switch (result) {
+    case Success<User>(:final data):
+      state = AuthState.authenticated(data);
+    case Failure<User>(:final message):
+      state = AuthState.error(message);
+  }
+}
+```
+
+---
+
+## Provider Organization
+
+### Standard Pattern (Post-Login Features)
+
+Use this pattern for all features that are accessed after user login:
+
+```dart
+// 1. Service provider (FutureProvider - only async part)
+final dashboardServiceProvider = FutureProvider<DashboardService>((ref) async {
+  final client = await ref.watch(apiClientProvider.future);
+  return client.getService<DashboardService>();
+});
+
+// 2. Repository provider (uses .requireValue)
+final dashboardRepositoryProvider = Provider<DashboardRepository>((ref) {
+  final service = ref.watch(dashboardServiceProvider).requireValue;
+  return DashboardRepository(service);
+});
+
+// 3. Use case provider
+final getDashboardUseCaseProvider = Provider<GetDashboardUseCase>((ref) {
+  final repository = ref.watch(dashboardRepositoryProvider);
+  return GetDashboardUseCase(repository);
+});
+
+// 4. Notifier provider (receives use case directly)
+final dashboardProvider = StateNotifierProvider<DashboardNotifier, BaseState<Dashboard>>((ref) {
+  final useCase = ref.watch(getDashboardUseCaseProvider);
+  return DashboardNotifier(useCase);
+});
+```
+
+### Notifier with Direct Dependencies (Recommended)
+
+```dart
+class DashboardNotifier extends BaseNotifier<Dashboard> {
+  final GetDashboardUseCase _getDashboardUseCase;
+
+  DashboardNotifier(this._getDashboardUseCase) : super();
+
+  @override
+  Future<Result<Dashboard>> fetchData({Map<String, dynamic>? params}) async {
+    return await _getDashboardUseCase.execute(...);
+  }
+}
+```
+
+### Auth-Dependent Pattern (Pre-Login Features)
+
+Use `Ref` pattern only for features that need to handle async initialization errors (e.g., auth):
+
+```dart
+class AuthNotifier extends StateNotifier<AuthState> {
+  final Ref _ref;
+
+  AuthNotifier(this._ref) : super(const AuthState.initial());
+
+  Future<void> login(...) async {
+    try {
+      // Access providers lazily - they may not be ready
+      final useCase = await _ref.read(loginUseCaseProvider.future);
+      final result = await useCase.execute(...);
+    } catch (e) {
+      state = AuthState.error('Failed: $e');
+    }
+  }
+}
+```
+
+### When to Use Each Pattern
+
+| Pattern | When to Use |
+|---------|-------------|
+| **FutureProvider chain** | Features loaded immediately after login (Dashboard, first screens) |
+| `.requireValue` | Features accessed later when services are guaranteed ready (lazy screens) |
+| `Ref` + `.future` | Auth flows or when service initialization timing is uncertain |
+
+**⚠️ IMPORTANT:** `.requireValue` throws `StateError` if `FutureProvider` is still loading!
+Only use it when you are 100% certain the provider has already resolved.
+
+---
+
+## Widget Usage
+
+### Accessing Providers
+
+```dart
+// Use ref.watch() for reactive updates (rebuilds widget)
+final state = ref.watch(authProvider);
+
+// Use ref.read() for one-time access (actions, callbacks)
+ref.read(authProvider.notifier).login(email, password);
+```
+
+### Widget Types
+
+```dart
+// For stateless with providers
+class MyScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(myProvider);
+    // ...
+  }
+}
+
+// For stateful with providers
+class MyScreen extends ConsumerStatefulWidget {
+  @override
+  ConsumerState<MyScreen> createState() => _MyScreenState();
+}
+
+class _MyScreenState extends ConsumerState<MyScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(myProvider.notifier).load();
+    });
+  }
+}
+```
+
+---
+
+## State Handling in UI
+
+### Using maybeWhen (Recommended)
+
+```dart
+state.maybeWhen(
+  loaded: (data) => _buildContent(data),
+  error: (message) => ErrorStateWidget(message: message, onRetry: _retry),
+  orElse: () => const LoadingStateWidget(),
+)
+```
+
+### Using when (All states required)
+
+```dart
+state.when(
+  initial: () => const SizedBox.shrink(),
+  loading: () => const LoadingStateWidget(),
+  loaded: (data) => _buildContent(data),
+  error: (message) => ErrorStateWidget(message: message),
+)
+```
+
+---
+
+## Best Practices
+
+1. **Extend base notifiers** - Use `BaseNotifier<T>` or `PaginatedNotifier<T>`
+2. **Use Result pattern** - Handle errors explicitly in use cases
+3. **Freezed for states** - All state classes should use Freezed
+4. **Watch vs Read** - `watch` for reactive, `read` for actions
+5. **Initial load** - Use `addPostFrameCallback` in `initState`
+6. **Typed convenience methods** - Add methods with typed params on notifiers
+7. **Keep providers close** - Define providers near where they're used
+8. **Immutable state** - Never mutate state directly
+
+---
+
+## File Locations
+
+| File | Location |
+|------|----------|
+| BaseNotifier | `lib/core/presentation/providers/base_notifier.dart` |
+| BaseState | `lib/core/presentation/providers/base_state.dart` |
+| PaginatedNotifier | `lib/core/presentation/providers/paginated_notifier.dart` |
+| PaginatedState | `lib/core/presentation/providers/paginated_state.dart` |
+| Result | `lib/core/domain/result.dart` |
+| PaginatedList | `lib/core/domain/paginated_list.dart` |

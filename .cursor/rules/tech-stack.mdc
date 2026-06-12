@@ -1,0 +1,122 @@
+---
+description: Project tech stack and dependencies - DO NOT change versions without approval.
+alwaysApply: false
+---
+
+# Tech Stack
+
+⚠️ **DO NOT change package versions without explicit approval.**
+
+---
+
+## Core
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| Dart SDK | ^3.9.2 | Language |
+| Flutter | SDK | Framework |
+
+---
+
+## State Management
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| flutter_riverpod | ^2.6.1 | State management |
+| freezed | ^3.2.3 | Immutable state classes |
+| freezed_annotation | ^3.1.0 | Freezed annotations |
+
+---
+
+## Networking & API
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| chopper | ^8.4.0 | HTTP client |
+| chopper_generator | ^8.4.0 | Chopper code gen |
+
+---
+
+## Navigation
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| go_router | ^17.0.0 | Declarative routing |
+
+---
+
+## Serialization
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| built_value | ^8.12.1 | Value classes |
+| built_value_generator | ^8.12.1 | Built Value code gen |
+| built_collection | ^5.1.1 | Immutable collections |
+
+---
+
+## Storage
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| shared_preferences | ^2.5.3 | Key-value storage |
+
+---
+
+## Firebase
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| firebase_core | ^4.2.1 | Firebase init |
+| firebase_messaging | ^16.0.4 | Push notifications |
+| cloud_firestore | ^6.1.0 | Cloud database |
+
+---
+
+## Localization
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| flutter_localizations | SDK | Material localizations |
+| intl | any | i18n formatting |
+
+---
+
+## UI
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| google_fonts | ^6.3.2 | Custom fonts |
+| flutter_svg | ^2.2.3 | SVG support |
+| pin_code_fields | ^8.0.1 | OTP input |
+| flutter_spinkit | ^5.2.1 | Loading animations |
+
+---
+
+## Utilities
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| device_info_plus | ^12.2.0 | Device info |
+| package_info_plus | ^9.0.0 | App info |
+| logging | ^1.3.0 | Logging |
+
+---
+
+## Development
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| build_runner | ^2.7.1 | Code generation |
+| source_gen | 4.1.1 | Code gen framework |
+| flutter_lints | ^6.0.0 | Linting rules |
+
+---
+
+## Architecture Patterns
+
+- **Clean Architecture** - Data → Domain → Presentation
+- **Feature-based structure** - Self-contained features
+- **Repository pattern** - Abstract data sources
+- **Result pattern** - `core/domain/result.dart`
+- **Base notifiers** - `core/presentation/providers/`
